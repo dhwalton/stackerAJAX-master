@@ -81,7 +81,6 @@ var getUnanswered = function(tags) {
 	});
 };
 
-
 $(document).ready( function() {
 	$('.unanswered-getter').submit( function(e){
 		e.preventDefault();
@@ -91,4 +90,73 @@ $(document).ready( function() {
 		var tags = $(this).find("input[name='tags']").val();
 		getUnanswered(tags);
 	});
+
+	// event handler for top answerers button - DONNY ADDED
+	$('.inspiration-getter').submit( function(e){
+		e.preventDefault();
+		// zero out results if previous search has run
+		$('.results').html('');
+		// get the value of the tags the user submitted
+		var tags = $(this).find("input[name='answerers']").val();
+		getTopAnswerers(tags);
+	});
 });
+
+/*
+	--------------- Donny Added ---------------
+*/
+
+// this function takes the answerer object returned by the StackOverflow request
+// and returns new result to be appended to DOM
+var showAnswerer = function(answerer) {
+	
+	// clone our result template code
+	var result = $('.templates .inspiration').clone();
+
+	// set some properties related to answerer
+	var answererDT = result.find('.answerer');
+	answererDT.html('<p>Name: <a target="_blank" '+
+		'href=http://stackoverflow.com/users/' + answerer.user.user_id + ' >' +
+		answerer.user.display_name +
+		'</a></p>' +
+		'<p>Reputation: ' + answerer.user.reputation + '</p>'
+	);
+
+	return result;
+};
+
+
+// takes a tag and finds the top answerers on StackOverflow's API 
+var getTopAnswerers = function(tag) {
+	// the parameters we need to pass in our request to StackOverflow's API
+	var request = { 
+		site: 'stackoverflow',
+		order: 'desc',
+		sort: 'creation'
+	};
+	$.ajax({
+		// tag is apparently in the URL for answerers, so I'm doing a string replace in the appropriate spot
+		// using the passed in tag argument
+		url: "http://api.stackexchange.com/2.2/tags/!TAG!/top-answerers/all_time".replace("!TAG!",tag),
+		data: request,
+		dataType: "jsonp",//use jsonp to avoid cross origin issues
+		type: "GET",
+	})
+	.done(function(result){ //this waits for the ajax to return with a succesful promise object
+
+		// they made the search results into a separate function for the unanswered questions,
+		// it seems excessive to me to wrap one line of code into a function that is used one time
+		$('.search-results').html('Top ' + result.items.length + ' answerers for <strong>' + tag + '</strong>');
+		
+		//$.each is a higher order function. It takes an array and a function as an argument.
+		//The function is executed once for each item in the array.
+		$.each(result.items, function(i, item) {
+			var answerer = showAnswerer(item);
+			$('.results').append(answerer);
+		});
+	})
+	.fail(function(jqXHR, error){ //this waits for the ajax to return with an error promise object
+		var errorElem = showError(error);
+		$('.search-results').append(errorElem);
+	});
+}
